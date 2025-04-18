@@ -8,6 +8,7 @@ BOT_TOKEN = ""
 CHAT_ID = ""
 EMAILS_FILE = "emails.json"
 ATTACHMENTS_DIR = "attachments"
+HTML_DIR = "html_emails"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -30,7 +31,7 @@ def send_email_to_telegram(email):
     msg += f"🔵 *To*      : `{email.get('to')}`\n"
     msg += f"📅 *Date*    : `{email.get('date')}`\n"
     msg += f"✉️ *Subject* : *{email.get('subject')}*\n"
-    msg += f"\n📄 *Body:*\n```\n{email.get('content', '').strip()[:2000]}\n```"
+    msg += f"\n📄 *Body preview:*\n```\n{email.get('content', '').strip()[:2000]}\n```"
 
     bot.send_message(CHAT_ID, msg, parse_mode="Markdown")
 
@@ -44,6 +45,17 @@ def send_email_to_telegram(email):
                 print(f"✅ Sent and deleted attachment: {att['filename']}")
             except Exception as e:
                 print(f"❌ Failed to send attachment: {e}")
+
+    if "htmlFile" in email:
+        html_path = os.path.join(HTML_DIR, email["htmlFile"])
+        if os.path.exists(html_path):
+            try:
+                with open(html_path, "rb") as html_file:
+                    bot.send_document(CHAT_ID, html_file, caption="🌐 Raw HTML view of the email")
+                os.remove(html_path)
+                print(f"✅ Sent and deleted HTML file: {email['htmlFile']}")
+            except Exception as e:
+                print(f"❌ Failed to send HTML file: {e}")
 
 
 def process_emails():
