@@ -139,7 +139,7 @@ Whenever a mail is received:
 
 ## 🙌 Acknowledgements
 
-Created by [YourName] — with Python, Node.js, and a pinch of creativity.  
+Created by atrajit-sarkar — with Python, Node.js, and a pinch of creativity.  
 Inspired by the idea of bringing elegant email experience directly to Telegram.
 
 ---
