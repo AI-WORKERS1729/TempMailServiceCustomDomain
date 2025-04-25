@@ -24,14 +24,14 @@ This project sets up a local SMTP server that receives emails, saves them (with 
 
 ## 📁 Folder Structure
 
-
+```
 📁 project/
 ├── email_to_telegram.py        # Python script to send emails to Telegram
 ├── server.js                   # Node.js SMTP server
 ├── emails.json                 # Stores pending emails
 ├── attachments/                # Email attachments
 └── html_emails/                # HTML versions of email bodies
-
+```
 ---
 
 ## 🧰 Prerequisites
