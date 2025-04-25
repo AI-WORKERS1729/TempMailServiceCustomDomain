@@ -175,11 +175,4 @@ Inspired by the idea of bringing elegant email experience directly to Telegram.
 
 ---
 
-## 📜 License
 
-MIT License — free to use, modify, and share.
-```
-
----
-
-Let me know if you'd like this README turned into a stylized webpage or if you'd like GitHub Actions integration to automate updates.
