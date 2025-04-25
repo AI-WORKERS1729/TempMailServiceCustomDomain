@@ -55,6 +55,8 @@ sudo apt install -y git nodejs npm python3 python3-pip
 mkdir TempMail
 cd TempMail
 git clone https://github.com/MyTestLab1729/TempMailServiceCustomDomain.git .
+sudo apt install python3.12-venv -y
+python3 -m venv myvenv
 ```
 
 ### 2. Install Node.js Dependencies
