@@ -68,7 +68,7 @@ npm install smtp-server mailparser
 ### 3. Install Python Dependencies
 
 ```bash
-pip install pyTelegramBotAPI
+pip3 install pyTelegramBotAPI
 ```
 
 ### 4. Edit Configuration
