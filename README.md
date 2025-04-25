@@ -122,16 +122,16 @@ Whenever a mail is received:
 ### Run `index.js` in Background
 
 ```bash
-sudo nano /etc/systemd/system/email-to-telegram.service
+sudo nano /etc/systemd/system/smtp-server.service
 ```
 Add the following content to the service file:
 ```bash
 [Unit]
-Description=Email to Telegram
+Description=SMTP Server
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 /home/ubuntu/TempMail/email_to_telegram.py
+ExecStart=/usr/bin/node /home/ubuntu/TempMail/index.js
 WorkingDirectory=/home/ubuntu/TempMail
 StandardOutput=inherit
 StandardError=inherit
@@ -141,6 +141,7 @@ Group=ubuntu
 
 [Install]
 WantedBy=multi-user.target
+
 
 ```
 
