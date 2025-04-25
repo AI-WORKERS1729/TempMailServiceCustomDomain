@@ -1,5 +1,3 @@
-// === SMTP Server Code (Node.js) ===
-
 const { SMTPServer } = require("smtp-server");
 const { simpleParser } = require("mailparser");
 const fs = require("fs");
@@ -9,6 +7,7 @@ const { exec } = require("child_process");
 const EMAILS_FILE = "emails.json";
 const ATTACHMENTS_DIR = "attachments";
 const HTML_DIR = "html_emails";
+const WHITELIST_FILE = "whitelist.txt";
 
 if (!fs.existsSync(ATTACHMENTS_DIR)) fs.mkdirSync(ATTACHMENTS_DIR);
 if (!fs.existsSync(HTML_DIR)) fs.mkdirSync(HTML_DIR);
@@ -23,28 +22,48 @@ function writeEmails(emails) {
     fs.writeFileSync(EMAILS_FILE, JSON.stringify(emails, null, 2));
 }
 
+function readWhitelist() {
+    if (!fs.existsSync(WHITELIST_FILE)) return [];
+    return fs.readFileSync(WHITELIST_FILE, "utf8")
+        .split("\n")
+        .map(line => line.trim().toLowerCase())
+        .filter(line => line);
+}
+
 const server = new SMTPServer({
     allowInsecureAuth: true,
     authOptional: true,
     disabledCommands: ["STARTTLS"],
+
     onConnect(session, cb) {
-        console.log(`\uD83D\uDCE5 Connected: Session ID - ${session.id}`);
-        cb();
+        console.log(`📥 Connected: ${session.remoteAddress}`);
+        cb(); // Accept connection
     },
+
     onMailFrom(address, session, cb) {
-        console.log(`\uD83D\uDCE4 From: ${address.address}`);
-        cb();
+        console.log(`📤 From: ${address.address}`);
+        cb(); // We’re not filtering by sender
     },
+
     onRcptTo(address, session, cb) {
-        console.log(`\uD83D\uDCE9 To: ${address.address}`);
-        cb();
+        const whitelist = readWhitelist();
+        const recipient = address.address.toLowerCase();
+
+        if (!whitelist.includes(recipient)) {
+            console.log(`❌ Rejected: recipient ${recipient} not in whitelist.`);
+            return cb(new Error("Recipient not in whitelist."));
+        }
+
+        console.log(`✅ Accepted: recipient ${recipient}`);
+        cb(); // Accept recipient
     },
+
     onData(stream, session, cb) {
-        console.log("\uD83D\uDCE1 Receiving message...");
+        console.log("📡 Receiving message...");
 
         simpleParser(stream, {}, (err, parsed) => {
             if (err) {
-                console.error("\u274C Parse Error:", err);
+                console.error("❌ Parse Error:", err);
                 return cb(err);
             }
 
@@ -54,7 +73,7 @@ const server = new SMTPServer({
                 const filepath = path.join(ATTACHMENTS_DIR, filename);
                 fs.writeFileSync(filepath, att.content);
                 attachments.push({ filename });
-                console.log(`\uD83D\uDCCE Saved attachment: ${filename}`);
+                console.log(`📎 Saved attachment: ${filename}`);
             });
 
             const htmlFilename = `${Date.now()}_email.html`;
@@ -77,13 +96,12 @@ const server = new SMTPServer({
             emails.push(email);
             writeEmails(emails);
 
-            console.log(`\u2705 Email stored: ${email.subject}`);
+            console.log(`✅ Email stored: ${email.subject}`);
 
-            // Trigger the Python script
             exec("/home/ubuntu/myvenv/bin/python3 email_to_telegram.py", (error, stdout, stderr) => {
-                if (error) console.error(`\u274C Python error: ${error.message}`);
-                if (stderr) console.error(`\u26A0\uFE0F Python stderr: ${stderr}`);
-                if (stdout) console.log(`\uD83D\uDCE4 Python output:\n${stdout}`);
+                if (error) console.error(`❌ Python error: ${error.message}`);
+                if (stderr) console.error(`⚠️ Python stderr: ${stderr}`);
+                if (stdout) console.log(`📤 Python output:\n${stdout}`);
             });
 
             cb();
@@ -92,5 +110,5 @@ const server = new SMTPServer({
 });
 
 server.listen(25, () => {
-    console.log("\uD83D\uDE80 SMTP server running on port 25");
+    console.log("🚀 SMTP server running on port 25");
 });
