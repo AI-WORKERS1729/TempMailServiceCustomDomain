@@ -131,7 +131,7 @@ Description=SMTP Server
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/node /home/ubuntu/TempMail/index.js
+ExecStart=sudo /usr/bin/node /home/ubuntu/TempMail/index.js
 WorkingDirectory=/home/ubuntu/TempMail
 StandardOutput=inherit
 StandardError=inherit
