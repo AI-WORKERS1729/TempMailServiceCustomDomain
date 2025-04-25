@@ -4,7 +4,6 @@ Absolutely! Here's a clean, beginner-friendly `README.md` for your project that 
 
 ---
 
-```markdown
 # 📬 Email to Telegram Notifier
 
 This project sets up a local SMTP server that receives emails, saves them (with attachments and HTML content), and instantly sends the email content and attachments to a private Telegram chat.
@@ -25,14 +24,13 @@ This project sets up a local SMTP server that receives emails, saves them (with 
 
 ## 📁 Folder Structure
 
-```
+
 📁 project/
 ├── email_to_telegram.py        # Python script to send emails to Telegram
 ├── server.js                   # Node.js SMTP server
 ├── emails.json                 # Stores pending emails
 ├── attachments/                # Email attachments
 └── html_emails/                # HTML versions of email bodies
-```
 
 ---
 
@@ -43,6 +41,10 @@ This project sets up a local SMTP server that receives emails, saves them (with 
 - pip
 - A Telegram Bot Token + your Telegram Chat ID
 
+### Install all prerequisites
+```bash
+sudo apt install -y git nodejs npm python3 python3-pip
+```
 ---
 
 ## 🛠️ Setup Guide
