@@ -52,8 +52,9 @@ sudo apt install -y git nodejs npm python3 python3-pip
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/email-to-telegram.git
-cd email-to-telegram
+mkdir TempMail
+cd TempMail
+git clone https://github.com/MyTestLab1729/TempMailServiceCustomDomain.git .
 ```
 
 ### 2. Install Node.js Dependencies
