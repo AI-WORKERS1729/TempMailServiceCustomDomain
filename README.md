@@ -114,6 +114,31 @@ Whenever a mail is received:
 
 ---
 
+### Run `index.js` in Background
+
+```bash
+sudo nano /etc/systemd/system/email-to-telegram.service
+```
+Add the following content to the service file:
+```bash
+[Unit]
+Description=Email to Telegram
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/ubuntu/TempMail/email_to_telegram.py
+WorkingDirectory=/home/ubuntu/TempMail
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=ubuntu
+Group=ubuntu
+
+[Install]
+WantedBy=multi-user.target
+
+```
+
 ## 🧹 Cleanup & Logs
 
 - Attachments are auto-deleted after sending.
