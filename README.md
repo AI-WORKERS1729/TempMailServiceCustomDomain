@@ -125,7 +125,7 @@ Whenever a mail is received:
 sudo nano /etc/systemd/system/smtp-server.service
 ```
 Add the following content to the service file:
-```bash
+```ini
 [Unit]
 Description=SMTP Server
 After=network.target
