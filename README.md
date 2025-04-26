@@ -200,7 +200,7 @@ Description=My Python Script Service
 After=network.target
 
 [Service]
-ExecStart=/home/ubuntu/myvenv/bin/python3 /home/ubuntu/TempMail/myscript.py
+ExecStart=/home/ubuntu/myvenv/bin/python3 /home/ubuntu/TempMail/bot_whitelist_manager.py
 WorkingDirectory=/home/ubuntu/TempMail
 Restart=always
 User=ubuntu
