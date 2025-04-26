@@ -217,8 +217,8 @@ WantedBy=multi-user.target
 ```bash
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
-sudo systemctl enable myscript.service
-sudo systemctl start myscript.service
+sudo systemctl enable tempmail-configt.service
+sudo systemctl start tempmail-configt.service
 ```
 
 ---
@@ -226,13 +226,13 @@ sudo systemctl start myscript.service
 #### 3. **Check the status and logs**
 
 ```bash
-sudo systemctl status myscript.service
+sudo systemctl status tempmail-configt.service
 ```
 
 To see the logs:
 
 ```bash
-journalctl -u myscript.service -f
+journalctl -u tempmail-configt.service -f
 ```
 
 ---
