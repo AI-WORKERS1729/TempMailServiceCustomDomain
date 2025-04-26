@@ -175,4 +175,67 @@ Inspired by the idea of bringing elegant email experience directly to Telegram.
 
 ---
 
+## Optimally Run bot whitelist manager python script in background like the following:
+
+To run a Python script as a **background service** in Ubuntu, you can create a **systemd service**. This is a clean, reliable way to run your script on startup or keep it always running.
+
+---
+
+### ✅ Step-by-Step Guide
+
+
+#### 1. **Create a systemd service file**
+
+Create a service file in `/etc/systemd/system/`:
+
+```bash
+sudo nano /etc/systemd/system/tempmail-configt.service
+```
+
+Paste the following content:
+
+```ini
+[Unit]
+Description=My Python Script Service
+After=network.target
+
+[Service]
+ExecStart=/home/ubuntu/myvenv/bin/python3 /home/ubuntu/TempMail/myscript.py
+WorkingDirectory=/home/ubuntu/TempMail
+Restart=always
+User=ubuntu
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+```
+
+---
+
+#### 2. **Reload systemd and enable the service**
+
+```bash
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl enable myscript.service
+sudo systemctl start myscript.service
+```
+
+---
+
+#### 3. **Check the status and logs**
+
+```bash
+sudo systemctl status myscript.service
+```
+
+To see the logs:
+
+```bash
+journalctl -u myscript.service -f
+```
+
+---
+
+
 
