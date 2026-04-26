@@ -13,7 +13,9 @@ def _load_dotenv(path=".env"):
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), value.strip())
+            # Strip inline comments (e.g. value   # comment)
+            value = value.split("#")[0].strip()
+            os.environ.setdefault(key.strip(), value)
 
 _load_dotenv()
 
@@ -294,7 +296,7 @@ def process_create_thread(msg):
             msg,
             f"❌ Failed to create forum topic: `{e}`\n\n"
             "Make sure forum-topic mode is enabled for your bot in @BotFather and "
-            "that BOT\_TOKEN / CHAT\_ID are correct.",
+            "that BOT_TOKEN / CHAT_ID are correct.",
             parse_mode="Markdown"
         )
 

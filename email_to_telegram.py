@@ -15,7 +15,9 @@ def _load_dotenv(path=".env"):
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), value.strip())
+            # Strip inline comments (e.g. value   # comment)
+            value = value.split("#")[0].strip()
+            os.environ.setdefault(key.strip(), value)
 
 _load_dotenv()
 
