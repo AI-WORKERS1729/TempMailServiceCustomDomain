@@ -194,8 +194,11 @@ def send_email_to_telegram(email: dict):
                 print(f"❌ Failed to send attachment: {e}")
 
     # 5. Send HTML file
+    print(f"🔍 DEBUG cwd={os.getcwd()}")
+    print(f"🔍 DEBUG htmlFile key present: {'htmlFile' in email}, value: {email.get('htmlFile')}")
     if "htmlFile" in email:
         html_path = os.path.join(HTML_DIR, email["htmlFile"])
+        print(f"🔍 DEBUG html_path={html_path}, exists={os.path.exists(html_path)}")
         if os.path.exists(html_path):
             try:
                 with open(html_path, "rb") as fh:
@@ -204,6 +207,8 @@ def send_email_to_telegram(email: dict):
                 print(f"✅ Sent and deleted HTML file: {email['htmlFile']}")
             except Exception as e:
                 print(f"❌ Failed to send HTML file: {e}")
+        else:
+            print(f"❌ HTML file not found at path: {html_path}")
 
 
 def process_emails():
