@@ -4,24 +4,55 @@ const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 
+function loadEnvFile(filePath = path.join(__dirname, ".env")) {
+    if (!fs.existsSync(filePath)) return;
+
+    for (const line of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+
+        const equalsIndex = trimmed.indexOf("=");
+        if (equalsIndex === -1) continue;
+
+        const key = trimmed.slice(0, equalsIndex).trim();
+        let value = trimmed.slice(equalsIndex + 1).trim();
+        if (
+            (value.startsWith("\"") && value.endsWith("\"")) ||
+            (value.startsWith("'") && value.endsWith("'"))
+        ) {
+            value = value.slice(1, -1);
+        }
+
+        if (key && process.env[key] === undefined) {
+            process.env[key] = value;
+        }
+    }
+}
+
+loadEnvFile();
+
 const EMAILS_FILE = "emails.json";
 const ATTACHMENTS_DIR = "attachments";
 const HTML_DIR = "html_emails";
 const WHITELIST_FILE = "whitelist.txt";
 const BLACKLIST_FILE = "blacklist.txt"; // <-- Added Blacklist file
 
-// --- IMPORTANT: Update these paths to your Let's Encrypt certificates ---
-const LETS_ENCRYPT_DIR = "/etc/letsencrypt/live/mail.atraj.it/";
+// TLS_KEY_PATH/TLS_CERT_PATH can be set in .env or PM2 env config.
+const LETS_ENCRYPT_DIR = process.env.LETS_ENCRYPT_DIR || "/etc/letsencrypt/live/mail.atraj.it";
+const TLS_KEY_PATH = process.env.TLS_KEY_PATH || path.join(LETS_ENCRYPT_DIR, "privkey.pem");
+const TLS_CERT_PATH = process.env.TLS_CERT_PATH || path.join(LETS_ENCRYPT_DIR, "fullchain.pem");
 let SSL_OPTIONS;
 try {
     SSL_OPTIONS = {
-        key: fs.readFileSync(path.join(LETS_ENCRYPT_DIR, "privkey.pem")),
-        cert: fs.readFileSync(path.join(LETS_ENCRYPT_DIR, "fullchain.pem")),
+        key: fs.readFileSync(TLS_KEY_PATH),
+        cert: fs.readFileSync(TLS_CERT_PATH),
     };
-    console.log("✅ SSL Certificates loaded successfully.");
+    console.log("SSL certificates loaded successfully.");
 } catch (sslError) {
-    console.error("❌ CRITICAL ERROR: Could not load SSL certificates!");
-    console.error(`   Please ensure 'privkey.pem' and 'fullchain.pem' exist in ${LETS_ENCRYPT_DIR}`);
+    console.error("CRITICAL ERROR: Could not load SSL certificates.");
+    console.error(`   Key path: ${TLS_KEY_PATH}`);
+    console.error(`   Cert path: ${TLS_CERT_PATH}`);
+    console.error(`   Details: ${sslError.code || "ERROR"} ${sslError.message}`);
     console.error("   The server will NOT start without SSL certificates.");
     process.exit(1); // Exit if SSL certs can't be loaded
 }

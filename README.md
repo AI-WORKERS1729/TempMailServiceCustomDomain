@@ -304,9 +304,24 @@ If successful, Certbot will save your certificate and private key in `/etc/letse
 **Important:** These files are owned by `root` and have restricted permissions. Your Node.js process will need permission to read them. You can either run your Node.js server as root ( **not recommended for production** ) or, a better approach:
 
 * Create a dedicated user/group for your Node.js app.
-* Copy the certificates to a location accessible by your app (and update paths in the code).
+* Copy the certificates to a location accessible by your app and set `TLS_KEY_PATH` / `TLS_CERT_PATH` in `.env` or your PM2 env config.
 * Set up a `cron` job or systemd timer that runs *after* Certbot renewal to copy the new certs and set permissions, then restart your Node.js server.
 * Alternatively, grant read access to a specific group that your Node.js user belongs to (be careful with private key permissions).
+
+For example, if PM2 runs the app as `ubuntu`:
+
+```bash
+sudo install -d -o ubuntu -g ubuntu -m 700 /home/ubuntu/tempmailservice/certs
+sudo install -o ubuntu -g ubuntu -m 600 /etc/letsencrypt/live/mail.atraj.it/privkey.pem /home/ubuntu/tempmailservice/certs/privkey.pem
+sudo install -o ubuntu -g ubuntu -m 644 /etc/letsencrypt/live/mail.atraj.it/fullchain.pem /home/ubuntu/tempmailservice/certs/fullchain.pem
+```
+
+Then add these lines to `/home/ubuntu/tempmailservice/.env`:
+
+```env
+TLS_KEY_PATH=/home/ubuntu/tempmailservice/certs/privkey.pem
+TLS_CERT_PATH=/home/ubuntu/tempmailservice/certs/fullchain.pem
+```
 
 ### 4. Set Up Auto-Renewal 🔄
 
@@ -332,7 +347,7 @@ If the dry run succeeds, auto-renewal should work. The renewal process usually c
 
 ### 5. Start Your Secure Node.js Server
 
-1.  **Update the Node.js code** with the correct paths to your `privkey.pem` and `fullchain.pem` in the `SSL_OPTIONS` section.
+1.  **Set `TLS_KEY_PATH` and `TLS_CERT_PATH`** if your PM2 user cannot read `/etc/letsencrypt/live/mail.atraj.it/` directly.
 2.  **Ensure you have `npm install smtp-server mailparser`**.
 3.  **Run your Node.js server.** You might need `sudo` if you are listening on port 25 (a privileged port) and haven't set up port forwarding or granted capabilities:
 
