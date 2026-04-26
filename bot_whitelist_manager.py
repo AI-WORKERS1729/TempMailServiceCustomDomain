@@ -4,6 +4,13 @@ import os
 import json
 
 # --- Simple .env loader (no extra deps needed) ---
+def _clean_env_value(value):
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        return value[1:-1].strip()
+    return value.split("#", 1)[0].strip()
+
+
 def _load_dotenv(path=".env"):
     if not os.path.exists(path):
         return
@@ -13,23 +20,33 @@ def _load_dotenv(path=".env"):
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, _, value = line.partition("=")
-            # Strip inline comments (e.g. value   # comment)
-            value = value.split("#")[0].strip()
-            os.environ.setdefault(key.strip(), value)
+            os.environ.setdefault(key.strip(), _clean_env_value(value))
 
 _load_dotenv()
+
+
+def _required_token(env_name):
+    token = _clean_env_value(os.environ.get(env_name, ""))
+    compact_token = "".join(token.split())
+    if compact_token != token:
+        print(f"WARNING: Removed whitespace from {env_name}. Fix .env so the token has no spaces.")
+    if not compact_token:
+        raise SystemExit(f"Missing {env_name} in .env")
+    if ":" not in compact_token:
+        raise SystemExit(f"Invalid {env_name}: expected a Telegram bot token like 123456:ABC...")
+    return compact_token
 
 # --- SECURITY WARNING ---
 # Your MANAGER_BOT_TOKEN is like a password. Do NOT share it or commit it to public
 # repositories. Consider using environment variables or a secure vault to store it.
-BOT_TOKEN         = os.environ.get('MANAGER_BOT_TOKEN', '')  # Manager bot — handles commands
-INBOX_BOT_TOKEN   = os.environ.get('BOT_TOKEN', '')          # Inbox bot — owns the forum topics
+BOT_TOKEN         = _required_token('MANAGER_BOT_TOKEN')  # Manager bot — handles commands
+INBOX_BOT_TOKEN   = _required_token('BOT_TOKEN')          # Inbox bot — owns the forum topics
 # --- END WARNING ---
 
 # Chat ID where emails are forwarded (used for creating forum topics)
-CHAT_ID = os.environ.get('CHAT_ID', '')
+CHAT_ID = _clean_env_value(os.environ.get('CHAT_ID', ''))
 
-ADMIN_CHAT_IDS = [os.environ.get('ADMIN_CHAT_ID', '')]  # Only users with these IDs can interact.
+ADMIN_CHAT_IDS = [_clean_env_value(os.environ.get('ADMIN_CHAT_ID', ''))]  # Only users with these IDs can interact.
 WHITELIST_FILE = 'whitelist.txt'
 BLACKLIST_FILE = 'blacklist.txt'
 THREADS_FILE   = 'threads.json'  # Shared with email_to_telegram.py

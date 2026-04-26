@@ -5,6 +5,13 @@ import requests
 import telebot
 
 # === LOAD .env ===
+def _clean_env_value(value):
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        return value[1:-1].strip()
+    return value.split("#", 1)[0].strip()
+
+
 def _load_dotenv(path=".env"):
     """Simple .env loader — no extra dependencies needed."""
     if not os.path.exists(path):
@@ -15,20 +22,30 @@ def _load_dotenv(path=".env"):
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, _, value = line.partition("=")
-            # Strip inline comments (e.g. value   # comment)
-            value = value.split("#")[0].strip()
-            os.environ.setdefault(key.strip(), value)
+            os.environ.setdefault(key.strip(), _clean_env_value(value))
 
 _load_dotenv()
 
+
+def _required_token(env_name):
+    token = _clean_env_value(os.environ.get(env_name, ""))
+    compact_token = "".join(token.split())
+    if compact_token != token:
+        print(f"WARNING: Removed whitespace from {env_name}. Fix .env so the token has no spaces.")
+    if not compact_token:
+        raise SystemExit(f"Missing {env_name} in .env")
+    if ":" not in compact_token:
+        raise SystemExit(f"Invalid {env_name}: expected a Telegram bot token like 123456:ABC...")
+    return compact_token
+
 # === CONFIGURATION ===
-BOT_TOKEN  = os.environ.get("BOT_TOKEN", "")
-CHAT_ID    = os.environ.get("CHAT_ID", "")
+BOT_TOKEN  = _required_token("BOT_TOKEN")
+CHAT_ID    = _clean_env_value(os.environ.get("CHAT_ID", ""))
 
 # Ollama Cloud — API key + base URL from .env
-OLLAMA_API_KEY  = os.environ.get("Ollama_Api_key", "")
+OLLAMA_API_KEY  = _clean_env_value(os.environ.get("Ollama_Api_key", ""))
 # env stores e.g. "http://ollama.com/api"  →  endpoint = base + "/chat"
-_OLLAMA_BASE    = os.environ.get("Ollama_Api_url", "https://api.ollama.com/api").rstrip("/")
+_OLLAMA_BASE    = _clean_env_value(os.environ.get("Ollama_Api_url", "https://api.ollama.com/api")).rstrip("/")
 OLLAMA_ENDPOINT = f"{_OLLAMA_BASE}/chat"
 OLLAMA_MODEL    = "gemini-3-flash-preview:cloud"
 

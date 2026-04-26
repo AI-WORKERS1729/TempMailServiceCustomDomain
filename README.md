@@ -73,20 +73,16 @@ pip3 install pyTelegramBotAPI
 
 ### 4. Edit Configuration
 
-- **`server.js`** and **`email_to_telegram.py`** contain configuration variables you need to update:
+Create a `.env` file in the project directory:
 
-#### Replace the following:
-
-```js
-// In server.js
-exec("/full/path/to/python3 email_to_telegram.py");
+```env
+BOT_TOKEN=YOUR_INBOX_BOT_TOKEN
+MANAGER_BOT_TOKEN=YOUR_MANAGER_BOT_TOKEN
+CHAT_ID=YOUR_TELEGRAM_CHAT_ID
+ADMIN_CHAT_ID=YOUR_TELEGRAM_USER_ID
 ```
 
-```py
-# In email_to_telegram.py
-BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-CHAT_ID = "YOUR_TELEGRAM_USER_ID"
-```
+Telegram bot tokens must not contain spaces. Use `123456:ABC...`, not `123456: ABC...`.
 
 - You can get your Chat ID by sending a message to your bot and visiting:
   ```
