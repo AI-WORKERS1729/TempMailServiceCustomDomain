@@ -1,16 +1,35 @@
 #!/usr/bin/env python3
 import telebot
 import os
+import json
+
+# --- Simple .env loader (no extra deps needed) ---
+def _load_dotenv(path=".env"):
+    if not os.path.exists(path):
+        return
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip())
+
+_load_dotenv()
 
 # --- SECURITY WARNING ---
 # Your BOT_TOKEN is like a password. Do NOT share it or commit it to public
 # repositories. Consider using environment variables or a secure vault to store it.
-BOT_TOKEN = ''
+BOT_TOKEN = os.environ.get('BOT_TOKEN', '')
 # --- END WARNING ---
 
-ADMIN_CHAT_IDS = ['']  # Only users with these IDs can interact.
+# Chat ID where emails are forwarded (used for creating forum topics)
+CHAT_ID = os.environ.get('CHAT_ID', '')
+
+ADMIN_CHAT_IDS = [os.environ.get('ADMIN_CHAT_ID', '')]  # Only users with these IDs can interact.
 WHITELIST_FILE = 'whitelist.txt'
 BLACKLIST_FILE = 'blacklist.txt'
+THREADS_FILE   = 'threads.json'  # Shared with email_to_telegram.py
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -70,7 +89,7 @@ def help_command(msg):
     bot.reply_to(msg, (
         "🛠️ *Available Admin Commands:*\n\n"
         "*General:*\n"
-        "/cancel - Cancel the current operation\n\n" # <-- Added /cancel
+        "/cancel - Cancel the current operation\n\n"
         "*Whitelist (Allow Recipient):*\n"
         "/addemail - Add to whitelist\n"
         "/removeemail - Remove from whitelist\n"
@@ -80,7 +99,11 @@ def help_command(msg):
         "/addblacklist - Add to blacklist\n"
         "/removeblacklist - Remove from blacklist\n"
         "/listblacklist - View blacklist\n"
-        "/clearblacklist - Clear blacklist"
+        "/clearblacklist - Clear blacklist\n\n"
+        "*Email Threads (Forum Topics):*\n"
+        "/createthread - Create a named email thread\n"
+        "/listthreads - View all threads\n"
+        "/deletethread - Remove a thread entry"
     ), parse_mode="Markdown")
 
 # --- Whitelist Admin Commands ---
@@ -209,6 +232,121 @@ def process_clear_blacklist(msg):
         bot.reply_to(msg, "✅ Blacklist cleared.")
     else:
         bot.reply_to(msg, "❌ Cancelled. Blacklist not modified.")
+
+# ── Thread (Forum-Topic) helpers ────────────────────────────────────────────
+
+def load_threads() -> dict:
+    if not os.path.exists(THREADS_FILE):
+        return {}
+    with open(THREADS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_threads(threads: dict):
+    with open(THREADS_FILE, "w", encoding="utf-8") as f:
+        json.dump(threads, f, indent=2)
+
+
+# ── Thread Commands ──────────────────────────────────────────────────────────
+
+@bot.message_handler(commands=['createthread'])
+def ask_for_create_thread(msg):
+    if not is_admin(msg): return send_unauthorized(msg)
+    sent = bot.reply_to(
+        msg,
+        "🗂️ Enter the *thread name* to create (e.g. `GitHub Alerts`, `Bank`, `Work`) or /cancel:",
+        parse_mode="Markdown"
+    )
+    bot.register_next_step_handler(sent, process_create_thread)
+
+
+def process_create_thread(msg):
+    if not is_admin(msg): return send_unauthorized(msg)
+    if msg.text and msg.text.strip().lower() == '/cancel':
+        return cancel_command(msg)
+
+    name = msg.text.strip()[:128]  # Telegram forum topic name limit
+    if not name:
+        return bot.reply_to(msg, "❌ Thread name cannot be empty.")
+
+    threads = load_threads()
+    if name in threads:
+        return bot.reply_to(
+            msg,
+            f"⚠️ Thread `{name}` already exists (id: `{threads[name]}`).",
+            parse_mode="Markdown"
+        )
+
+    # Create the Telegram forum topic in the email chat
+    try:
+        topic = bot.create_forum_topic(CHAT_ID, name)
+        thread_id = topic.message_thread_id
+        threads[name] = thread_id
+        save_threads(threads)
+        bot.reply_to(
+            msg,
+            f"✅ Thread created: *{name}* (id: `{thread_id}`)\n"
+            "New emails matching this label will be routed here automatically.",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        bot.reply_to(
+            msg,
+            f"❌ Failed to create forum topic: `{e}`\n\n"
+            "Make sure forum-topic mode is enabled for your bot in @BotFather and "
+            "that BOT\_TOKEN / CHAT\_ID are correct.",
+            parse_mode="Markdown"
+        )
+
+
+@bot.message_handler(commands=['listthreads'])
+def list_threads(msg):
+    if not is_admin(msg): return send_unauthorized(msg)
+    threads = load_threads()
+    if not threads:
+        return bot.reply_to(msg, "⚠️ No threads saved yet. Use /createthread to add one.")
+    lines = [f"  `{name}` → id `{tid}`" for name, tid in threads.items()]
+    bot.reply_to(
+        msg,
+        "*🗂️ Email Threads:*\n" + "\n".join(lines),
+        parse_mode="Markdown"
+    )
+
+
+@bot.message_handler(commands=['deletethread'])
+def ask_for_delete_thread(msg):
+    if not is_admin(msg): return send_unauthorized(msg)
+    threads = load_threads()
+    if not threads:
+        return bot.reply_to(msg, "⚠️ No threads to delete.")
+    lines = "\n".join(f"  • {n}" for n in threads)
+    sent = bot.reply_to(
+        msg,
+        f"🗑️ Enter the *exact thread name* to remove from tracking (or /cancel):\n{lines}",
+        parse_mode="Markdown"
+    )
+    bot.register_next_step_handler(sent, process_delete_thread)
+
+
+def process_delete_thread(msg):
+    if not is_admin(msg): return send_unauthorized(msg)
+    if msg.text and msg.text.strip().lower() == '/cancel':
+        return cancel_command(msg)
+
+    name = msg.text.strip()
+    threads = load_threads()
+    if name not in threads:
+        return bot.reply_to(msg, f"⚠️ Thread `{name}` not found.", parse_mode="Markdown")
+
+    del threads[name]
+    save_threads(threads)
+    bot.reply_to(
+        msg,
+        f"✅ Removed thread `{name}` from tracking.\n"
+        "(The Telegram topic itself was not deleted — use the app to delete it if needed.)",
+        parse_mode="Markdown"
+    )
+
 
 # --- Catch-all for unknown commands or text ---
 @bot.message_handler(func=lambda message: True)
