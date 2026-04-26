@@ -3,6 +3,8 @@ import telebot
 import os
 import json
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # --- Simple .env loader (no extra deps needed) ---
 def _clean_env_value(value):
     value = value.strip()
@@ -11,7 +13,8 @@ def _clean_env_value(value):
     return value.split("#", 1)[0].strip()
 
 
-def _load_dotenv(path=".env"):
+def _load_dotenv(path=None):
+    path = path or os.path.join(BASE_DIR, ".env")
     if not os.path.exists(path):
         return
     with open(path, "r", encoding="utf-8") as f:
@@ -47,10 +50,10 @@ INBOX_BOT_TOKEN   = _required_token('BOT_TOKEN')          # Inbox bot — owns t
 CHAT_ID = _clean_env_value(os.environ.get('CHAT_ID', ''))
 
 ADMIN_CHAT_IDS = [_clean_env_value(os.environ.get('ADMIN_CHAT_ID', ''))]  # Only users with these IDs can interact.
-ENV_FILE = '.env'
-WHITELIST_FILE = 'whitelist.txt'
-BLACKLIST_FILE = 'blacklist.txt'
-THREADS_FILE   = 'threads.json'  # Shared with email_to_telegram.py
+ENV_FILE = os.path.join(BASE_DIR, '.env')
+WHITELIST_FILE = os.path.join(BASE_DIR, 'whitelist.txt')
+BLACKLIST_FILE = os.path.join(BASE_DIR, 'blacklist.txt')
+THREADS_FILE   = os.path.join(BASE_DIR, 'threads.json')  # Shared with email_to_telegram.py
 
 bot       = telebot.TeleBot(BOT_TOKEN)        # Manager bot: handles admin commands
 inbox_bot = telebot.TeleBot(INBOX_BOT_TOKEN)  # Inbox bot: creates forum topics

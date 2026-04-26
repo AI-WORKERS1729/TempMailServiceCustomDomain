@@ -4,6 +4,8 @@ import json
 import requests
 import telebot
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # === LOAD .env ===
 _DOTENV_VALUES = {}
 
@@ -15,8 +17,9 @@ def _clean_env_value(value):
     return value.split("#", 1)[0].strip()
 
 
-def _load_dotenv(path=".env"):
+def _load_dotenv(path=None):
     """Simple .env loader — no extra dependencies needed."""
+    path = path or os.path.join(BASE_DIR, ".env")
     if not os.path.exists(path):
         return
     with open(path, "r", encoding="utf-8") as f:
@@ -112,10 +115,10 @@ _OLLAMA_BASE    = _clean_env_value(os.environ.get("Ollama_Api_url", "https://api
 OLLAMA_ENDPOINT = f"{_OLLAMA_BASE}/chat"
 OLLAMA_MODEL    = "gemini-3-flash-preview:cloud"
 
-EMAILS_FILE     = "emails.json"
-ATTACHMENTS_DIR = "attachments"
-HTML_DIR        = "html_emails"
-THREADS_FILE    = "threads.json"   # {"Thread Name": <message_thread_id>, ...}
+EMAILS_FILE     = os.path.join(BASE_DIR, "emails.json")
+ATTACHMENTS_DIR = os.path.join(BASE_DIR, "attachments")
+HTML_DIR        = os.path.join(BASE_DIR, "html_emails")
+THREADS_FILE    = os.path.join(BASE_DIR, "threads.json")   # {"Thread Name": <message_thread_id>, ...}
 
 bot = telebot.TeleBot(BOT_TOKEN)
 

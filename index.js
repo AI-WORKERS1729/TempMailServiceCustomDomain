@@ -2,7 +2,9 @@ const { SMTPServer } = require("smtp-server");
 const { simpleParser } = require("mailparser");
 const fs = require("fs");
 const path = require("path");
-const { exec } = require("child_process");
+const { execFile } = require("child_process");
+
+const APP_DIR = __dirname;
 
 function loadEnvFile(filePath = path.join(__dirname, ".env")) {
     if (!fs.existsSync(filePath)) return;
@@ -31,11 +33,13 @@ function loadEnvFile(filePath = path.join(__dirname, ".env")) {
 
 loadEnvFile();
 
-const EMAILS_FILE = "emails.json";
-const ATTACHMENTS_DIR = "attachments";
-const HTML_DIR = "html_emails";
-const WHITELIST_FILE = "whitelist.txt";
-const BLACKLIST_FILE = "blacklist.txt"; // <-- Added Blacklist file
+const EMAILS_FILE = path.join(APP_DIR, "emails.json");
+const ATTACHMENTS_DIR = path.join(APP_DIR, "attachments");
+const HTML_DIR = path.join(APP_DIR, "html_emails");
+const WHITELIST_FILE = path.join(APP_DIR, "whitelist.txt");
+const BLACKLIST_FILE = path.join(APP_DIR, "blacklist.txt"); // <-- Added Blacklist file
+const PYTHON_BIN = process.env.PYTHON_BIN || "/home/ubuntu/myvenv/bin/python3";
+const EMAIL_TO_TELEGRAM_SCRIPT = path.join(APP_DIR, "email_to_telegram.py");
 
 // TLS_KEY_PATH/TLS_CERT_PATH can be set in .env or PM2 env config.
 const LETS_ENCRYPT_DIR = process.env.LETS_ENCRYPT_DIR || "/etc/letsencrypt/live/mail.atraj.it";
@@ -64,8 +68,33 @@ try {
 }
 // ---------------------------------------------------------------------
 
-if (!fs.existsSync(ATTACHMENTS_DIR)) fs.mkdirSync(ATTACHMENTS_DIR);
-if (!fs.existsSync(HTML_DIR)) fs.mkdirSync(HTML_DIR);
+function ensureWritableDirectory(dirPath) {
+    try {
+        fs.mkdirSync(dirPath, { recursive: true });
+        fs.accessSync(dirPath, fs.constants.W_OK);
+    } catch (error) {
+        console.error(`CRITICAL ERROR: Directory is not writable: ${dirPath}`);
+        console.error(`   Details: ${error.code || "ERROR"} ${error.message}`);
+        process.exit(1);
+    }
+}
+
+function ensureWritableFile(filePath, defaultContent) {
+    try {
+        if (!fs.existsSync(filePath)) {
+            fs.writeFileSync(filePath, defaultContent);
+        }
+        fs.accessSync(filePath, fs.constants.R_OK | fs.constants.W_OK);
+    } catch (error) {
+        console.error(`CRITICAL ERROR: File is not readable/writable: ${filePath}`);
+        console.error(`   Details: ${error.code || "ERROR"} ${error.message}`);
+        process.exit(1);
+    }
+}
+
+ensureWritableDirectory(ATTACHMENTS_DIR);
+ensureWritableDirectory(HTML_DIR);
+ensureWritableFile(EMAILS_FILE, "[]\n");
 
 function readEmails() {
     if (!fs.existsSync(EMAILS_FILE)) return [];
@@ -81,8 +110,10 @@ function readEmails() {
 function writeEmails(emails) {
     try {
         fs.writeFileSync(EMAILS_FILE, JSON.stringify(emails, null, 2));
+        return true;
     } catch (error) {
         console.error("❌ Error writing emails.json:", error);
+        return false;
     }
 }
 
@@ -187,13 +218,15 @@ const server = new SMTPServer({
                 }
             });
 
-            const htmlFilename = `${Date.now()}_email.html`;
-            const htmlPath = path.join(HTML_DIR, htmlFilename);
+            let htmlFilename = null;
+            const candidateHtmlFilename = `${Date.now()}_email.html`;
+            const htmlPath = path.join(HTML_DIR, candidateHtmlFilename);
             const htmlContent = parsed.html || parsed.textAsHtml || `<pre>${parsed.text || ""}</pre>`;
             try {
                 fs.writeFileSync(htmlPath, htmlContent);
+                htmlFilename = candidateHtmlFilename;
             } catch (writeErr) {
-                console.error(`❌ Error saving HTML email ${htmlFilename}:`, writeErr);
+                console.error(`❌ Error saving HTML email ${candidateHtmlFilename}:`, writeErr);
             }
 
 
@@ -205,19 +238,25 @@ const server = new SMTPServer({
                 subject: parsed.subject || "No Subject",
                 content: parsed.text || parsed.html || "",
                 attachments,
-                htmlFile: htmlFilename,
                 remoteAddress: session.remoteAddress,
                 tls: session.secure ? "Yes" : "No"
             };
+            if (htmlFilename) {
+                email.htmlFile = htmlFilename;
+            }
 
             const emails = readEmails();
             emails.push(email);
-            writeEmails(emails);
+            if (!writeEmails(emails)) {
+                const storageErr = new Error("Could not store email on server.");
+                storageErr.responseCode = 451;
+                return cb(storageErr);
+            }
 
             console.log(`✅ Email stored: ${email.subject}`);
 
             // Ensure you trust this script and its environment.
-            exec("/home/ubuntu/myvenv/bin/python3 email_to_telegram.py", (error, stdout, stderr) => {
+            execFile(PYTHON_BIN, [EMAIL_TO_TELEGRAM_SCRIPT], { cwd: APP_DIR }, (error, stdout, stderr) => {
                 if (error) console.error(`❌ Python error: ${error.message}`);
                 if (stderr) console.error(`⚠️ Python stderr: ${stderr}`);
                 if (stdout) console.log(`📤 Python output:\n${stdout}`);
