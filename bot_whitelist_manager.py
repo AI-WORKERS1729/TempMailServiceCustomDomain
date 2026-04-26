@@ -22,7 +22,8 @@ _load_dotenv()
 # --- SECURITY WARNING ---
 # Your MANAGER_BOT_TOKEN is like a password. Do NOT share it or commit it to public
 # repositories. Consider using environment variables or a secure vault to store it.
-BOT_TOKEN = os.environ.get('MANAGER_BOT_TOKEN', '')
+BOT_TOKEN         = os.environ.get('MANAGER_BOT_TOKEN', '')  # Manager bot — handles commands
+INBOX_BOT_TOKEN   = os.environ.get('BOT_TOKEN', '')          # Inbox bot — owns the forum topics
 # --- END WARNING ---
 
 # Chat ID where emails are forwarded (used for creating forum topics)
@@ -33,7 +34,8 @@ WHITELIST_FILE = 'whitelist.txt'
 BLACKLIST_FILE = 'blacklist.txt'
 THREADS_FILE   = 'threads.json'  # Shared with email_to_telegram.py
 
-bot = telebot.TeleBot(BOT_TOKEN)
+bot       = telebot.TeleBot(BOT_TOKEN)        # Manager bot: handles admin commands
+inbox_bot = telebot.TeleBot(INBOX_BOT_TOKEN)  # Inbox bot: creates forum topics
 
 # --- Admin check ---
 def is_admin(msg):
@@ -279,9 +281,9 @@ def process_create_thread(msg):
             parse_mode="Markdown"
         )
 
-    # Create the Telegram forum topic in the email chat
+    # Create the Telegram forum topic using the INBOX bot (it owns the forum chat)
     try:
-        topic = bot.create_forum_topic(CHAT_ID, name)
+        topic = inbox_bot.create_forum_topic(CHAT_ID, name)
         thread_id = topic.message_thread_id
         threads[name] = thread_id
         save_threads(threads)
