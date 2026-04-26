@@ -173,10 +173,8 @@ def send_email_to_telegram(email: dict):
     msg += f"\n📄 *Body preview:*\n```\n{email.get('content', '').strip()[:2000]}\n```"
 
     # 3. Send text
-    send_kwargs = dict(chat_id=CHAT_ID, text=msg, parse_mode="Markdown")
-    if thread_id:
-        send_kwargs["message_thread_id"] = thread_id
-    bot.send_message(**send_kwargs)
+    extra = {"message_thread_id": thread_id} if thread_id else {}
+    bot.send_message(CHAT_ID, msg, parse_mode="Markdown", **extra)
 
     # 4. Send attachments
     for att in email.get("attachments", []):
@@ -184,10 +182,7 @@ def send_email_to_telegram(email: dict):
         if os.path.exists(filepath):
             try:
                 with open(filepath, "rb") as fh:
-                    doc_kwargs = dict(chat_id=CHAT_ID, document=fh, caption=f"📎 {att['filename']}")
-                    if thread_id:
-                        doc_kwargs["message_thread_id"] = thread_id
-                    bot.send_document(**doc_kwargs)
+                    bot.send_document(CHAT_ID, fh, caption=f"📎 {att['filename']}", **extra)
                 os.remove(filepath)
                 print(f"✅ Sent and deleted attachment: {att['filename']}")
             except Exception as e:
@@ -199,10 +194,7 @@ def send_email_to_telegram(email: dict):
         if os.path.exists(html_path):
             try:
                 with open(html_path, "rb") as fh:
-                    doc_kwargs = dict(chat_id=CHAT_ID, document=fh, caption="🌐 Raw HTML view of the email")
-                    if thread_id:
-                        doc_kwargs["message_thread_id"] = thread_id
-                    bot.send_document(**doc_kwargs)
+                    bot.send_document(CHAT_ID, fh, caption="🌐 Raw HTML view of the email", **extra)
                 os.remove(html_path)
                 print(f"✅ Sent and deleted HTML file: {email['htmlFile']}")
             except Exception as e:
