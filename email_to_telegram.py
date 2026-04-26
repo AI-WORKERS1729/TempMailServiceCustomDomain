@@ -174,7 +174,12 @@ def send_email_to_telegram(email: dict):
 
     # 3. Send text
     extra = {"message_thread_id": thread_id} if thread_id else {}
-    bot.send_message(CHAT_ID, msg, parse_mode="Markdown", **extra)
+    try:
+        bot.send_message(CHAT_ID, msg, parse_mode="Markdown", **extra)
+    except Exception:
+        # Fallback: send as plain text if Markdown parsing fails
+        plain = msg.replace("*", "").replace("`", "").replace("_", "")
+        bot.send_message(CHAT_ID, plain, **extra)
 
     # 4. Send attachments
     for att in email.get("attachments", []):
