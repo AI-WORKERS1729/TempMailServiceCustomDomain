@@ -105,6 +105,8 @@ Port `25` is privileged on Linux. To run PM2 as `ubuntu`, set `SMTP_PORT=2525` a
 sudo iptables -t nat -A PREROUTING -p tcp --dport 25 -j REDIRECT --to-port 2525
 ```
 
+SMTP AUTH is disabled because this service only receives email. Unknown users should not be able to attempt username/password login through this server.
+
 The manager bot can also update these keys:
 
 ```text

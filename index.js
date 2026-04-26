@@ -119,21 +119,9 @@ const server = new SMTPServer({
     secure: false,
     key: SSL_OPTIONS.key,
     cert: SSL_OPTIONS.cert,
+    disabledCommands: ["AUTH"],
     authOptional: true,
     allowInsecureAuth: false,
-
-    // --- Authentication Handler (Optional but Recommended) ---
-    onAuth(auth, session, cb) {
-        console.log(`🔐 Auth attempt: ${auth.username}`);
-        // Implement your actual authentication logic here
-        if (auth.username === "user" && auth.password === "password") {
-            console.log(`🔑 User ${auth.username} authenticated.`);
-            cb(null, { user: auth.username });
-        } else {
-            console.log(`🚫 Auth failed for ${auth.username}.`);
-            cb(new Error("Invalid username or password"));
-        }
-    },
 
     onConnect(session, cb) {
         console.log(`📥 Connected: ${session.remoteAddress}`);
