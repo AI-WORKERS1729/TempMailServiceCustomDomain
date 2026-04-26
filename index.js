@@ -11,7 +11,7 @@ const WHITELIST_FILE = "whitelist.txt";
 const BLACKLIST_FILE = "blacklist.txt"; // <-- Added Blacklist file
 
 // --- IMPORTANT: Update these paths to your Let's Encrypt certificates ---
-const LETS_ENCRYPT_DIR = "/etc/letsencrypt/live/yourdomain.com/"; // <--- CHANGE 'yourdomain.com'
+const LETS_ENCRYPT_DIR = "/etc/letsencrypt/live/mail.atraj.it/";
 let SSL_OPTIONS;
 try {
     SSL_OPTIONS = {
