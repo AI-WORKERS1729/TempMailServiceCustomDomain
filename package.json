@@ -1,0 +1,13 @@
+{
+  "name": "tempmailservice",
+  "version": "1.0.0",
+  "description": "Temp mail SMTP server forwarding emails to Telegram",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "mailparser": "^3.7.1",
+    "smtp-server": "^3.13.6"
+  }
+}
