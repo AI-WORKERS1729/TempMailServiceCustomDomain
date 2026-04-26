@@ -18,9 +18,9 @@ def _load_dotenv(path=".env"):
 _load_dotenv()
 
 # --- SECURITY WARNING ---
-# Your BOT_TOKEN is like a password. Do NOT share it or commit it to public
+# Your MANAGER_BOT_TOKEN is like a password. Do NOT share it or commit it to public
 # repositories. Consider using environment variables or a secure vault to store it.
-BOT_TOKEN = os.environ.get('BOT_TOKEN', '')
+BOT_TOKEN = os.environ.get('MANAGER_BOT_TOKEN', '')
 # --- END WARNING ---
 
 # Chat ID where emails are forwarded (used for creating forum topics)
