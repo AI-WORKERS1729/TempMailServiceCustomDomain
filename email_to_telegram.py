@@ -5,6 +5,9 @@ import requests
 import telebot
 
 # === LOAD .env ===
+_DOTENV_VALUES = {}
+
+
 def _clean_env_value(value):
     value = value.strip()
     if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
@@ -22,7 +25,10 @@ def _load_dotenv(path=".env"):
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), _clean_env_value(value))
+            key = key.strip()
+            value = _clean_env_value(value)
+            _DOTENV_VALUES.setdefault(key, []).append(value)
+            os.environ.setdefault(key, value)
 
 _load_dotenv()
 
@@ -43,7 +49,64 @@ BOT_TOKEN  = _required_token("BOT_TOKEN")
 CHAT_ID    = _clean_env_value(os.environ.get("CHAT_ID", ""))
 
 # Ollama Cloud — API key + base URL from .env
-OLLAMA_API_KEY  = _clean_env_value(os.environ.get("Ollama_Api_key", ""))
+def _split_env_values(value):
+    return [
+        _clean_env_value(item)
+        for item in value.replace(";", ",").split(",")
+        if _clean_env_value(item)
+    ]
+
+
+def _add_unique(values, value):
+    if value and value not in values:
+        values.append(value)
+
+
+def _env_values(env_name):
+    values = []
+    for value in _DOTENV_VALUES.get(env_name, []):
+        for item in _split_env_values(value):
+            _add_unique(values, item)
+
+    for item in _split_env_values(os.environ.get(env_name, "")):
+        _add_unique(values, item)
+
+    return values
+
+
+def _load_ollama_api_keys():
+    keys = []
+
+    # Preferred explicit list: OLLAMA_API_KEYS=key1,key2,key3
+    for env_name in ("OLLAMA_API_KEYS", "Ollama_Api_keys"):
+        for key in _env_values(env_name):
+            _add_unique(keys, key)
+
+    # Backward-compatible primary key.
+    for env_name in ("Ollama_Api_key", "OLLAMA_API_KEY"):
+        for key in _env_values(env_name):
+            _add_unique(keys, key)
+
+    # Direct .env additions: Ollama_Api_key_2=... / OLLAMA_API_KEY_2=...
+    for index in range(1, 51):
+        for env_name in (f"Ollama_Api_key_{index}", f"OLLAMA_API_KEY_{index}"):
+            for key in _env_values(env_name):
+                _add_unique(keys, key)
+
+    return keys
+
+
+def _should_try_next_ollama_key(status_code, response_text):
+    text = response_text.lower()
+    limit_markers = ("limit", "quota", "credit", "billing", "usage", "rate")
+    if status_code in (401, 429):
+        return True
+    if status_code in (402, 403) and any(marker in text for marker in limit_markers):
+        return True
+    return False
+
+
+OLLAMA_API_KEYS = _load_ollama_api_keys()
 # env stores e.g. "http://ollama.com/api"  →  endpoint = base + "/chat"
 _OLLAMA_BASE    = _clean_env_value(os.environ.get("Ollama_Api_url", "https://api.ollama.com/api")).rstrip("/")
 OLLAMA_ENDPOINT = f"{_OLLAMA_BASE}/chat"
@@ -138,32 +201,47 @@ def classify_email_thread(email: dict, existing_threads: list[str]) -> str | Non
         "Thread name:"
     )
 
-    headers = {"Content-Type": "application/json"}
-    if OLLAMA_API_KEY:
-        headers["Authorization"] = f"Bearer {OLLAMA_API_KEY}"
+    key_attempts = OLLAMA_API_KEYS or [None]
+    last_error = None
 
-    try:
-        resp = requests.post(
-            OLLAMA_ENDPOINT,
-            headers=headers,
-            json={
-                "model": OLLAMA_MODEL,
-                "messages": [{"role": "user", "content": prompt}],
-                "stream": False,
-                "options": {"temperature": 0.1},
-            },
-            timeout=90,
-        )
+    for index, api_key in enumerate(key_attempts, start=1):
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        try:
+            resp = requests.post(
+                OLLAMA_ENDPOINT,
+                headers=headers,
+                json={
+                    "model": OLLAMA_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": False,
+                    "options": {"temperature": 0.1},
+                },
+                timeout=90,
+            )
+        except requests.RequestException as e:
+            print(f"Ollama request failed: {e}")
+            return None
+
         if resp.status_code == 200:
             data = resp.json()
             # Ollama /api/chat returns {"message": {"content": "..."}}
             name = data.get("message", {}).get("content", "").strip().strip('"').strip("'")
             return name[:128] if name else None
+        last_error = f"{resp.status_code}: {resp.text[:200]}"
+        has_next_key = index < len(key_attempts)
+        if has_next_key and _should_try_next_ollama_key(resp.status_code, resp.text):
+            print(f"Ollama key {index}/{len(key_attempts)} returned {resp.status_code}; trying next key.")
+            continue
+
+        if len(key_attempts) > 1 and index == len(key_attempts):
+            print(f"Ollama API failed for all configured keys. Last response: {last_error}")
+        elif len(key_attempts) > 1:
+            print(f"Ollama API returned {last_error}; not retrying because this does not look like a key limit.")
         else:
-            print(f"⚠️ Ollama API returned {resp.status_code}: {resp.text[:200]}")
-            return None
-    except Exception as e:
-        print(f"⚠️ Ollama request failed: {e}")
+            print(f"Ollama API returned {last_error}")
         return None
 
 

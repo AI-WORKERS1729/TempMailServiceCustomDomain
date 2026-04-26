@@ -47,6 +47,7 @@ INBOX_BOT_TOKEN   = _required_token('BOT_TOKEN')          # Inbox bot — owns t
 CHAT_ID = _clean_env_value(os.environ.get('CHAT_ID', ''))
 
 ADMIN_CHAT_IDS = [_clean_env_value(os.environ.get('ADMIN_CHAT_ID', ''))]  # Only users with these IDs can interact.
+ENV_FILE = '.env'
 WHITELIST_FILE = 'whitelist.txt'
 BLACKLIST_FILE = 'blacklist.txt'
 THREADS_FILE   = 'threads.json'  # Shared with email_to_telegram.py
@@ -82,6 +83,89 @@ def save_list(filename, emails):
             f.write('\n'.join(sorted(set(emails))) + '\n')
     except Exception as e:
         print(f"Error saving {filename}: {e}")
+
+
+def split_env_values(value):
+    return [
+        _clean_env_value(item)
+        for item in value.replace(";", ",").split(",")
+        if _clean_env_value(item)
+    ]
+
+
+def add_unique(values, value):
+    if value and value not in values:
+        values.append(value)
+
+
+def is_ollama_key_env_name(name):
+    if name in ("Ollama_Api_key", "OLLAMA_API_KEY", "OLLAMA_API_KEYS", "Ollama_Api_keys"):
+        return True
+    for prefix in ("Ollama_Api_key_", "OLLAMA_API_KEY_"):
+        if name.startswith(prefix) and name[len(prefix):].isdigit():
+            return True
+    return False
+
+
+def parse_env_assignment(line):
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#") or "=" not in stripped:
+        return None, None
+    key, _, value = stripped.partition("=")
+    return key.strip(), _clean_env_value(value)
+
+
+def read_env_lines():
+    if not os.path.exists(ENV_FILE):
+        return []
+    with open(ENV_FILE, "r", encoding="utf-8") as f:
+        return f.read().splitlines()
+
+
+def load_ollama_api_keys():
+    keys = []
+    for line in read_env_lines():
+        key, value = parse_env_assignment(line)
+        if key and is_ollama_key_env_name(key):
+            for api_key in split_env_values(value):
+                add_unique(keys, api_key)
+    return keys
+
+
+def write_ollama_api_keys(keys):
+    block_header = "# === Ollama Cloud Keys (managed by bot) ==="
+    kept_lines = []
+    for line in read_env_lines():
+        key, _ = parse_env_assignment(line)
+        if line.strip() == block_header:
+            continue
+        if key and is_ollama_key_env_name(key):
+            continue
+        kept_lines.append(line)
+
+    while kept_lines and not kept_lines[-1].strip():
+        kept_lines.pop()
+
+    if keys:
+        if kept_lines:
+            kept_lines.append("")
+        kept_lines.append(block_header)
+        kept_lines.append(f"Ollama_Api_key={keys[0]}")
+        for index, api_key in enumerate(keys[1:], start=2):
+            kept_lines.append(f"Ollama_Api_key_{index}={api_key}")
+
+    with open(ENV_FILE, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(kept_lines) + ("\n" if kept_lines else ""))
+
+
+def mask_secret(value):
+    if len(value) <= 10:
+        return "*" * len(value)
+    return f"{value[:6]}...{value[-4:]}"
+
+
+def is_valid_ollama_key(value):
+    return bool(value) and len(value) >= 12 and not any(char.isspace() for char in value)
 
 # --- Utility Commands ---
 
@@ -121,6 +205,10 @@ def help_command(msg):
         "/removeblacklist - Remove from blacklist\n"
         "/listblacklist - View blacklist\n"
         "/clearblacklist - Clear blacklist\n\n"
+        "*Ollama API Keys:*\n"
+        "/addollamakey - Add a fallback Ollama API key\n"
+        "/listollamakeys - View masked Ollama API keys\n"
+        "/removeollamakey - Remove an Ollama API key\n\n"
         "*Email Threads (Forum Topics):*\n"
         "/createthread - Create a named email thread\n"
         "/listthreads - View all threads\n"
@@ -253,6 +341,95 @@ def process_clear_blacklist(msg):
         bot.reply_to(msg, "✅ Blacklist cleared.")
     else:
         bot.reply_to(msg, "❌ Cancelled. Blacklist not modified.")
+
+# --- Ollama API Key Commands ---
+@bot.message_handler(commands=['addollamakey'])
+def ask_for_add_ollama_key(msg):
+    if not is_admin(msg): return send_unauthorized(msg)
+    sent = bot.reply_to(
+        msg,
+        "Send the Ollama API key to add as a fallback (or /cancel). "
+        "After it is saved, delete your message containing the key from chat history."
+    )
+    bot.register_next_step_handler(sent, process_add_ollama_key)
+
+
+def process_add_ollama_key(msg):
+    if not is_admin(msg): return send_unauthorized(msg)
+    if msg.text and msg.text.strip().lower() == '/cancel':
+        return cancel_command(msg)
+
+    api_key = _clean_env_value(msg.text or "")
+    if not is_valid_ollama_key(api_key):
+        return bot.reply_to(msg, "Invalid Ollama API key. It must be at least 12 characters and contain no spaces.")
+
+    keys = load_ollama_api_keys()
+    if api_key in keys:
+        return bot.reply_to(msg, f"Ollama API key already exists: `{mask_secret(api_key)}`", parse_mode="Markdown")
+
+    keys.append(api_key)
+    write_ollama_api_keys(keys)
+    bot.reply_to(
+        msg,
+        f"Saved Ollama API key #{len(keys)}: `{mask_secret(api_key)}`\n"
+        "It will be used automatically by the next email classification run.",
+        parse_mode="Markdown"
+    )
+
+
+@bot.message_handler(commands=['listollamakeys'])
+def list_ollama_keys(msg):
+    if not is_admin(msg): return send_unauthorized(msg)
+    keys = load_ollama_api_keys()
+    if not keys:
+        return bot.reply_to(msg, "No Ollama API keys are configured.")
+
+    lines = [f"{index}. `{mask_secret(api_key)}`" for index, api_key in enumerate(keys, start=1)]
+    bot.reply_to(
+        msg,
+        "*Configured Ollama API Keys:*\n" + "\n".join(lines),
+        parse_mode="Markdown"
+    )
+
+
+@bot.message_handler(commands=['removeollamakey'])
+def ask_for_remove_ollama_key(msg):
+    if not is_admin(msg): return send_unauthorized(msg)
+    keys = load_ollama_api_keys()
+    if not keys:
+        return bot.reply_to(msg, "No Ollama API keys are configured.")
+
+    lines = [f"{index}. `{mask_secret(api_key)}`" for index, api_key in enumerate(keys, start=1)]
+    sent = bot.reply_to(
+        msg,
+        "Enter the number of the Ollama API key to remove (or /cancel):\n" + "\n".join(lines),
+        parse_mode="Markdown"
+    )
+    bot.register_next_step_handler(sent, process_remove_ollama_key)
+
+
+def process_remove_ollama_key(msg):
+    if not is_admin(msg): return send_unauthorized(msg)
+    if msg.text and msg.text.strip().lower() == '/cancel':
+        return cancel_command(msg)
+
+    try:
+        selection = int((msg.text or "").strip())
+    except ValueError:
+        return bot.reply_to(msg, "Please enter a valid key number.")
+
+    keys = load_ollama_api_keys()
+    if selection < 1 or selection > len(keys):
+        return bot.reply_to(msg, "That key number does not exist.")
+
+    removed = keys.pop(selection - 1)
+    write_ollama_api_keys(keys)
+    bot.reply_to(
+        msg,
+        f"Removed Ollama API key #{selection}: `{mask_secret(removed)}`",
+        parse_mode="Markdown"
+    )
+
 
 # ── Thread (Forum-Topic) helpers ────────────────────────────────────────────
 

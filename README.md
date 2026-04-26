@@ -80,9 +80,32 @@ BOT_TOKEN=YOUR_INBOX_BOT_TOKEN
 MANAGER_BOT_TOKEN=YOUR_MANAGER_BOT_TOKEN
 CHAT_ID=YOUR_TELEGRAM_CHAT_ID
 ADMIN_CHAT_ID=YOUR_TELEGRAM_USER_ID
+
+Ollama_Api_url=https://api.ollama.com/api
+Ollama_Api_key=YOUR_PRIMARY_OLLAMA_API_KEY
+Ollama_Api_key_2=YOUR_BACKUP_OLLAMA_API_KEY
+Ollama_Api_key_3=YOUR_SECOND_BACKUP_OLLAMA_API_KEY
 ```
 
 Telegram bot tokens must not contain spaces. Use `123456:ABC...`, not `123456: ABC...`.
+
+For Ollama fallback keys, you can either use numbered lines as above or one comma-separated line:
+
+```env
+OLLAMA_API_KEYS=KEY_1,KEY_2,KEY_3
+```
+
+If one Ollama key returns a quota/rate-limit response, the email classifier tries the next configured key before giving up.
+
+The manager bot can also update these keys:
+
+```text
+/addollamakey
+/listollamakeys
+/removeollamakey
+```
+
+The bot only lists masked keys, but the key you send to `/addollamakey` will still appear in your Telegram chat history unless you delete that message.
 
 - You can get your Chat ID by sending a message to your bot and visiting:
   ```
