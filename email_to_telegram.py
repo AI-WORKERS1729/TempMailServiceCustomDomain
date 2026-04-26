@@ -30,7 +30,7 @@ OLLAMA_API_KEY  = os.environ.get("Ollama_Api_key", "")
 # env stores e.g. "http://ollama.com/api"  →  endpoint = base + "/chat"
 _OLLAMA_BASE    = os.environ.get("Ollama_Api_url", "https://api.ollama.com/api").rstrip("/")
 OLLAMA_ENDPOINT = f"{_OLLAMA_BASE}/chat"
-OLLAMA_MODEL    = "kimi-k2.6:cloud"
+OLLAMA_MODEL    = "gemini-3-flash-preview:cloud"
 
 EMAILS_FILE     = "emails.json"
 ATTACHMENTS_DIR = "attachments"
