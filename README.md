@@ -81,6 +81,8 @@ MANAGER_BOT_TOKEN=YOUR_MANAGER_BOT_TOKEN
 CHAT_ID=YOUR_TELEGRAM_CHAT_ID
 ADMIN_CHAT_ID=YOUR_TELEGRAM_USER_ID
 
+SMTP_PORT=2525
+
 Ollama_Api_url=https://api.ollama.com/api
 Ollama_Api_key=YOUR_PRIMARY_OLLAMA_API_KEY
 Ollama_Api_key_2=YOUR_BACKUP_OLLAMA_API_KEY
@@ -96,6 +98,12 @@ OLLAMA_API_KEYS=KEY_1,KEY_2,KEY_3
 ```
 
 If one Ollama key returns a quota/rate-limit response, the email classifier tries the next configured key before giving up.
+
+Port `25` is privileged on Linux. To run PM2 as `ubuntu`, set `SMTP_PORT=2525` and redirect inbound port `25` to `2525`:
+
+```bash
+sudo iptables -t nat -A PREROUTING -p tcp --dport 25 -j REDIRECT --to-port 2525
+```
 
 The manager bot can also update these keys:
 
@@ -122,7 +130,7 @@ The bot only lists masked keys, but the key you send to `/addollamakey` will sti
 node server.js
 ```
 
-### 2. The SMTP server listens on port `25`. You can now send test emails using tools like:
+### 2. The SMTP server listens on `SMTP_PORT` (`2525` in the example above). You can now send test emails using tools like:
 
 ```bash
 swaks --to your@domain.com --from test@example.com --server localhost --data "Subject: Hello\n\nThis is a test email."

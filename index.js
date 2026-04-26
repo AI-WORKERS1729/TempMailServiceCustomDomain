@@ -41,6 +41,12 @@ const BLACKLIST_FILE = "blacklist.txt"; // <-- Added Blacklist file
 const LETS_ENCRYPT_DIR = process.env.LETS_ENCRYPT_DIR || "/etc/letsencrypt/live/mail.atraj.it";
 const TLS_KEY_PATH = process.env.TLS_KEY_PATH || path.join(LETS_ENCRYPT_DIR, "privkey.pem");
 const TLS_CERT_PATH = process.env.TLS_CERT_PATH || path.join(LETS_ENCRYPT_DIR, "fullchain.pem");
+const SMTP_PORT = Number.parseInt(process.env.SMTP_PORT || "25", 10);
+if (!Number.isInteger(SMTP_PORT) || SMTP_PORT < 1 || SMTP_PORT > 65535) {
+    console.error(`Invalid SMTP_PORT: ${process.env.SMTP_PORT}`);
+    process.exit(1);
+}
+
 let SSL_OPTIONS;
 try {
     SSL_OPTIONS = {
@@ -238,6 +244,6 @@ const server = new SMTPServer({
     }
 });
 
-server.listen(25, () => {
-    console.log("🚀 Secure SMTP server running on port 25 (TLS/Whitelist/Blacklist enabled)");
+server.listen(SMTP_PORT, () => {
+    console.log(`🚀 Secure SMTP server running on port ${SMTP_PORT} (TLS/Whitelist/Blacklist enabled)`);
 });
